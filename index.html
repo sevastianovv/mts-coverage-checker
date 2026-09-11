@@ -3,12 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>Карта покрытия МТС | Проверка 5G, 4G, 3G</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23e30611'/><text x='50%' y='68%' font-size='42' font-weight='bold' fill='white' text-anchor='middle' font-family='sans-serif'>MTS</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
+  <!-- Cache buster v2.5 -->
+  <link rel="stylesheet" href="style.css?v=2.5" />
   <!-- Yandex Maps API v2.1 -->
   <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
 </head>
@@ -107,14 +111,14 @@
         </svg>
       </button>
 
-      <!-- Кнопка возврата карточки, если её закрыли -->
+      <!-- Кнопка вернуть плашку, если её скрыли -->
       <button id="openPanelFab" class="fab-info-btn hidden" title="Показать информацию о точке">
-        <span class="fab-info-icon">📊</span>
-        <span>Инфо</span>
+        <span class="fab-info-icon">📍</span>
+        <span id="openPanelFabText">Инфо о точке</span>
       </button>
 
-      <!-- Компактная выдвижная панель (Bottom Sheet на мобилках) -->
-      <aside class="info-panel minimized" id="infoPanel">
+      <!-- Выдвижная панель: ПО УМОЛЧАНИЮ ПОЛНОСТЬЮ СКРЫТА (hidden), не мешает при входе! -->
+      <aside class="info-panel hidden minimized" id="infoPanel">
         <!-- Полоска свайпа для мобилок -->
         <div class="sheet-handle-bar" id="sheetToggleBar">
           <div class="sheet-pill"></div>
@@ -123,11 +127,11 @@
         <div class="panel-header" id="panelHeader">
           <div class="panel-title-wrap">
             <div class="panel-top-row">
-              <span class="point-badge" id="pointBadge">📍</span>
-              <h3 id="pointTitle">Ваше местоположение</h3>
+              <span class="point-badge">📍</span>
+              <h3 id="pointTitle">Точка проверки</h3>
               <span class="active-layer-pill" id="activeLayerPill">5G</span>
             </div>
-            <div class="address-line" id="pointAddress">Определение адреса...</div>
+            <div class="address-line" id="pointAddress">Нажмите на карту или GPS</div>
           </div>
           
           <div class="panel-actions">
@@ -197,7 +201,7 @@
           </div>
 
           <div class="panel-tip">
-            💡 <em>Нажимайте на карточки сетей, чтобы сразу переключить отображаемый слой на карте.</em>
+            💡 <em>Нажимайте на строку сети, чтобы включить её слой на карте.</em>
           </div>
         </div>
       </aside>
@@ -210,6 +214,7 @@
     </main>
   </div>
 
-  <script src="app.js"></script>
+  <!-- Cache buster v2.5 -->
+  <script src="app.js?v=2.5"></script>
 </body>
 </html>
