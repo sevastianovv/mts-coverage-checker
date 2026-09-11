@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Карта покрытия МТС | Проверка 5G, 4G, 3G</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23e30611'/><text x='50%' y='68%' font-size='42' font-weight='bold' fill='white' text-anchor='middle' font-family='sans-serif'>MTS</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <!-- Yandex Maps API v2.1 -->
+  <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Верхняя панель управления -->
+    <header class="top-bar">
+      <div class="brand">
+        <div class="brand-logo">МТС</div>
+        <div class="brand-text">
+          <h1>Карта покрытия сети</h1>
+          <span class="badge-region" id="regionLabel">5G & LTE Зоны покрытия</span>
+        </div>
+      </div>
+
+      <!-- Поисковый блок -->
+      <div class="search-section">
+        <div class="search-input-wrapper">
+          <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input 
+            type="text" 
+            id="addressInput" 
+            placeholder="Введите город, улицу или координаты (55.80, 49.13)..." 
+            autocomplete="off" 
+          />
+          <button id="clearSearchBtn" class="clear-btn" title="Очистить">&times;</button>
+        </div>
+        <button id="searchBtn" class="btn btn-primary">
+          <span>Найти</span>
+        </button>
+        <button id="geoBtn" class="btn btn-accent" title="Определить мое местоположение">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M12 2v3m0 14v3M2 12h3m14 0h3"></path>
+            <circle cx="12" cy="12" r="8" stroke-dasharray="2 2"></circle>
+          </svg>
+          <span>Моё местоположение</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Переключатель слоев покрытия -->
+    <div class="layer-bar">
+      <div class="layer-group">
+        <span class="layer-bar-title">Отображать слой:</span>
+        <div class="layer-tabs" id="layerTabs">
+          <button class="layer-tab active" data-layer="g5_New" data-name="5G (до 300 Мбит/с)">
+            <span class="tab-indicator g5-indicator"></span>
+            5G (до 300 Мбит/с)
+          </button>
+          <button class="layer-tab" data-layer="g5" data-name="Супер 5G (до 1.5 Гбит/с)">
+            <span class="tab-indicator g5super-indicator"></span>
+            Супер 5G (1.5 Гбит/с)
+          </button>
+          <button class="layer-tab" data-layer="lte_New" data-name="4G LTE">
+            <span class="tab-indicator lte-indicator"></span>
+            4G LTE
+          </button>
+          <button class="layer-tab" data-layer="g3_New" data-name="3G">
+            <span class="tab-indicator g3-indicator"></span>
+            3G
+          </button>
+          <button class="layer-tab" data-layer="g2_New" data-name="2G">
+            <span class="tab-indicator g2-indicator"></span>
+            2G
+          </button>
+          <button class="layer-tab" data-layer="nb_iot" data-name="NB-IoT">
+            <span class="tab-indicator nbiot-indicator"></span>
+            NB-IoT
+          </button>
+        </div>
+      </div>
+
+      <!-- Быстрые пресеты городов -->
+      <div class="city-presets">
+        <span class="preset-title">Города:</span>
+        <button class="preset-btn" data-lat="55.7903" data-lon="49.1228" data-zoom="12">Казань</button>
+        <button class="preset-btn" data-lat="55.7522" data-lon="48.7447" data-zoom="14">Иннополис</button>
+        <button class="preset-btn" data-lat="55.7436" data-lon="52.4089" data-zoom="12">Челны</button>
+        <button class="preset-btn" data-lat="54.9014" data-lon="52.2972" data-zoom="12">Альметьевск</button>
+        <button class="preset-btn" data-lat="55.7558" data-lon="37.6173" data-zoom="11">Москва</button>
+        <button class="preset-btn" data-lat="59.9343" data-lon="30.3351" data-zoom="11">СПб</button>
+      </div>
+    </div>
+
+    <!-- Область карты -->
+    <main class="map-wrapper">
+      <div id="map"></div>
+
+      <!-- Карточка информации о выбранной точке -->
+      <aside class="info-panel" id="infoPanel">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <h3 id="pointTitle">Точка проверки</h3>
+            <span class="panel-subtitle" id="pointCoords">55.7903, 49.1228</span>
+          </div>
+          <button id="closePanelBtn" class="close-panel" title="Скрыть панель">&times;</button>
+        </div>
+
+        <div class="panel-body">
+          <div class="address-box" id="pointAddress">
+            Определение адреса...
+          </div>
+
+          <!-- Результаты покрытия -->
+          <div class="coverage-results">
+            <div class="results-header">
+              <h4>Доступность сетей МТС:</h4>
+              <button id="recheckBtn" class="recheck-btn" title="Перепроверить">⟳</button>
+            </div>
+            <div class="tech-grid" id="techGrid">
+              <div class="tech-card" id="card-g5_New">
+                <div class="tech-header">
+                  <span class="tech-name">🚀 5G до 300 Мбит/с</span>
+                  <span class="tech-status status-loading" id="status-g5_New">Проверка...</span>
+                </div>
+                <div class="tech-desc">Высокоскоростной интернет нового поколения</div>
+              </div>
+
+              <div class="tech-card" id="card-g5">
+                <div class="tech-header">
+                  <span class="tech-name">⚡ Супер 5G (1.5 Гбит/с)</span>
+                  <span class="tech-status status-loading" id="status-g5">Проверка...</span>
+                </div>
+                <div class="tech-desc">Сверхвысокие пилотные скорости в центре</div>
+              </div>
+
+              <div class="tech-card" id="card-lte_New">
+                <div class="tech-header">
+                  <span class="tech-name">📶 4G LTE</span>
+                  <span class="tech-status status-loading" id="status-lte_New">Проверка...</span>
+                </div>
+                <div class="tech-desc">Быстрый интернет для видео и стриминга</div>
+              </div>
+
+              <div class="tech-card" id="card-g3_New">
+                <div class="tech-header">
+                  <span class="tech-name">🌐 3G</span>
+                  <span class="tech-status status-loading" id="status-g3_New">Проверка...</span>
+                </div>
+                <div class="tech-desc">Стандарт мобильной связи и передачи данных</div>
+              </div>
+
+              <div class="tech-card" id="card-g2_New">
+                <div class="tech-header">
+                  <span class="tech-name">📞 2G (GSM)</span>
+                  <span class="tech-status status-loading" id="status-g2_New">Проверка...</span>
+                </div>
+                <div class="tech-desc">Базовая голосовая связь и SMS</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-tip">
+            💡 <em>Кликните в любую точку на карте, чтобы мгновенно проверить покрытие в этом месте.</em>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Индикатор загрузки / геопозиционирования -->
+      <div id="loaderOverlay" class="loader-overlay hidden">
+        <div class="loader-spinner"></div>
+        <div class="loader-text" id="loaderText">Определение местоположения...</div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
