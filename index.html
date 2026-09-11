@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -11,27 +11,26 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- Cache buster v3.0 -->
-  <link rel="stylesheet" href="style.css?v=3.0" />
+  <!-- Cache buster v3.5 -->
+  <link rel="stylesheet" href="style.css?v=3.5" />
   <!-- Yandex Maps API v2.1 -->
   <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
 </head>
 <body>
   <div class="app-container">
-    <!-- Компактная верхняя панель -->
+    <!-- Адаптивная верхняя панель (100% помещается на любых смартфонах) -->
     <header class="top-bar">
       <div class="top-row">
+        <!-- Логотип -->
         <div class="brand">
           <div class="brand-logo">МТС</div>
-          <div class="brand-text">
-            <h1>Зоны покрытия</h1>
-          </div>
+          <span class="brand-title desktop-only">Покрытие</span>
         </div>
 
         <!-- Поисковая строка -->
         <div class="search-section">
           <div class="search-input-wrapper">
-            <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <svg class="search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2">
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
@@ -43,28 +42,36 @@
             />
             <button id="clearSearchBtn" class="clear-btn" title="Очистить">&times;</button>
           </div>
+
+          <!-- Кнопка поиска (иконка на мобильном, текст на десктопе) -->
           <button id="searchBtn" class="btn btn-search" title="Найти">
-            <span>Найти</span>
-          </button>
-          <button id="geoBtn" class="btn btn-accent" title="Определить мое местоположение">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M12 2v3m0 14v3M2 12h3m14 0h3"></path>
-              <circle cx="12" cy="12" r="8" stroke-dasharray="2 2"></circle>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <span class="geo-btn-text">Моё местоположение</span>
+            <span class="btn-text desktop-only">Найти</span>
+          </button>
+
+          <!-- Кнопка геолокации в шапке (компактная на мобильном) -->
+          <button id="geoBtn" class="btn btn-accent" title="Моё местоположение (GPS)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="12" cy="12" r="3.5" fill="currentColor"></circle>
+              <path d="M12 2v3m0 14v3M2 12h3m14 0h3"></path>
+              <circle cx="12" cy="12" r="8"></circle>
+            </svg>
+            <span class="btn-text desktop-only">Моё местоположение</span>
           </button>
         </div>
       </div>
 
-      <!-- Горизонтальная лента переключения стандартов связи -->
+      <!-- Горизонтальная лента сетей и городов (плавно скроллится пальцем) -->
       <div class="layer-chips-container">
         <div class="layer-chips" id="layerTabs">
-          <button class="layer-chip active" data-layer="g5_New" data-name="5G (до 300 Мбит/с)">
+          <button class="layer-chip active" data-layer="g5_New" data-name="5G 300М">
             <span class="chip-dot g5-dot"></span>
             5G 300М
           </button>
-          <button class="layer-chip" data-layer="g5" data-name="Супер 5G (до 1.5 Гбит/с)">
+          <button class="layer-chip" data-layer="g5" data-name="Супер 5G">
             <span class="chip-dot g5super-dot"></span>
             Супер 5G
           </button>
@@ -86,7 +93,9 @@
           </button>
         </div>
 
-        <!-- Пресеты городов (скролл) -->
+        <div class="chips-divider"></div>
+
+        <!-- Пресеты городов -->
         <div class="city-chips">
           <button class="city-chip" data-lat="55.7903" data-lon="49.1228" data-zoom="12">Казань</button>
           <button class="city-chip" data-lat="55.7522" data-lon="48.7447" data-zoom="14">Иннополис</button>
@@ -97,11 +106,11 @@
       </div>
     </header>
 
-    <!-- Основная область с картой (занимает 100% экрана) -->
+    <!-- Основная область с картой (100% экрана) -->
     <main class="map-wrapper">
       <div id="map"></div>
 
-      <!-- Плавающая кнопка GPS прямо на карте под большой палец -->
+      <!-- Круглая плавающая кнопка GPS прямо под большой палец -->
       <button id="fabGeoBtn" class="fab-geo-btn" title="Определить моё местоположение">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2">
           <circle cx="12" cy="12" r="3.5" fill="currentColor"></circle>
@@ -110,8 +119,7 @@
         </svg>
       </button>
 
-      <!-- КОМПАКТНАЯ ПЛАВАЮЩАЯ МИНИ-ПЛАШКА СНИЗУ (высота всего ~46px, не загораживает карту!) -->
-      <!-- По умолчанию ПОЛНОСТЬЮ СКРЫТА -->
+      <!-- КОМПАКТНАЯ ПЛАВАЮЩАЯ МИНИ-ПЛАШКА СНИЗУ (~46px) -->
       <div class="bottom-pill hidden" id="bottomPill">
         <div class="pill-content" id="pillToggleArea">
           <span class="pill-pin">📍</span>
@@ -119,7 +127,7 @@
             <span class="pill-address" id="pillAddress">Определение адреса...</span>
             <span class="pill-coords" id="pillCoords">55.7903, 49.1228</span>
           </div>
-          <span class="pill-badge" id="pillBadge">5G слой</span>
+          <span class="pill-badge" id="pillBadge">5G 300М</span>
           <button class="pill-expand-arrow" id="pillExpandBtn" title="Подробнее">
             <svg class="chevron-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="18 15 12 9 6 15"></polyline>
@@ -129,16 +137,16 @@
         <button class="pill-close-btn" id="pillCloseBtn" title="Закрыть">&times;</button>
       </div>
 
-      <!-- Выпадающее компактное окно подробностей (только если пользователь сам нажал раскрыть) -->
+      <!-- Выпадающее компактное окно подробностей -->
       <div class="details-dropdown hidden" id="detailsDropdown">
         <div class="dropdown-header">
-          <span>Доступность сетей в этой точке:</span>
+          <span>Сети в этой точке:</span>
           <button class="dropdown-close" id="detailsCloseBtn">&times;</button>
         </div>
         <div class="dropdown-grid">
           <div class="tech-row" data-layer-click="g5_New">
             <span class="tech-label">🚀 5G до 300 Мбит/с</span>
-            <span class="tech-val" id="status-g5_New">На карте</span>
+            <span class="tech-val" id="status-g5_New">Слой на карте</span>
           </div>
           <div class="tech-row" data-layer-click="g5">
             <span class="tech-label">⚡ Супер 5G (1.5 Гбит/с)</span>
@@ -167,7 +175,7 @@
     </main>
   </div>
 
-  <!-- Cache buster v3.0 -->
-  <script src="app.js?v=3.0"></script>
+  <!-- Cache buster v3.5 -->
+  <script src="app.js?v=3.5"></script>
 </body>
 </html>
