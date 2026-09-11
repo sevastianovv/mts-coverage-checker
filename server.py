@@ -75,6 +75,10 @@ def check_tile_pixel(lat, lon, net_type, zoom=12):
         return False
 
 class CoverageHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Конфиденциальность: отключаем логирование запросов и координат в консоль/файлы
+        pass
+
     def end_headers(self):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
