@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- Cache buster v2.5 -->
-  <link rel="stylesheet" href="style.css?v=2.5" />
+  <!-- Cache buster v3.0 -->
+  <link rel="stylesheet" href="style.css?v=3.0" />
   <!-- Yandex Maps API v2.1 -->
   <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
 </head>
@@ -46,14 +46,13 @@
           <button id="searchBtn" class="btn btn-search" title="Найти">
             <span>Найти</span>
           </button>
-          <!-- Кнопка гео для десктопа -->
-          <button id="geoBtn" class="btn btn-accent desktop-only" title="Определить мое местоположение">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <button id="geoBtn" class="btn btn-accent" title="Определить мое местоположение">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="3"></circle>
               <path d="M12 2v3m0 14v3M2 12h3m14 0h3"></path>
               <circle cx="12" cy="12" r="8" stroke-dasharray="2 2"></circle>
             </svg>
-            <span>Моё местоположение</span>
+            <span class="geo-btn-text">Моё местоположение</span>
           </button>
         </div>
       </div>
@@ -98,7 +97,7 @@
       </div>
     </header>
 
-    <!-- Основная область с картой -->
+    <!-- Основная область с картой (занимает 100% экрана) -->
     <main class="map-wrapper">
       <div id="map"></div>
 
@@ -111,110 +110,64 @@
         </svg>
       </button>
 
-      <!-- Кнопка вернуть плашку, если её скрыли -->
-      <button id="openPanelFab" class="fab-info-btn hidden" title="Показать информацию о точке">
-        <span class="fab-info-icon">📍</span>
-        <span id="openPanelFabText">Инфо о точке</span>
-      </button>
-
-      <!-- Выдвижная панель: ПО УМОЛЧАНИЮ ПОЛНОСТЬЮ СКРЫТА (hidden), не мешает при входе! -->
-      <aside class="info-panel hidden minimized" id="infoPanel">
-        <!-- Полоска свайпа для мобилок -->
-        <div class="sheet-handle-bar" id="sheetToggleBar">
-          <div class="sheet-pill"></div>
+      <!-- КОМПАКТНАЯ ПЛАВАЮЩАЯ МИНИ-ПЛАШКА СНИЗУ (высота всего ~46px, не загораживает карту!) -->
+      <!-- По умолчанию ПОЛНОСТЬЮ СКРЫТА -->
+      <div class="bottom-pill hidden" id="bottomPill">
+        <div class="pill-content" id="pillToggleArea">
+          <span class="pill-pin">📍</span>
+          <div class="pill-info">
+            <span class="pill-address" id="pillAddress">Определение адреса...</span>
+            <span class="pill-coords" id="pillCoords">55.7903, 49.1228</span>
+          </div>
+          <span class="pill-badge" id="pillBadge">5G слой</span>
+          <button class="pill-expand-arrow" id="pillExpandBtn" title="Подробнее">
+            <svg class="chevron-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="18 15 12 9 6 15"></polyline>
+            </svg>
+          </button>
         </div>
+        <button class="pill-close-btn" id="pillCloseBtn" title="Закрыть">&times;</button>
+      </div>
 
-        <div class="panel-header" id="panelHeader">
-          <div class="panel-title-wrap">
-            <div class="panel-top-row">
-              <span class="point-badge">📍</span>
-              <h3 id="pointTitle">Точка проверки</h3>
-              <span class="active-layer-pill" id="activeLayerPill">5G</span>
-            </div>
-            <div class="address-line" id="pointAddress">Нажмите на карту или GPS</div>
-          </div>
-          
-          <div class="panel-actions">
-            <button id="toggleExpandBtn" class="action-btn toggle-btn" title="Развернуть/Свернуть">
-              <svg class="chevron-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="18 15 12 9 6 15"></polyline>
-              </svg>
-            </button>
-            <button id="closePanelBtn" class="action-btn close-btn" title="Закрыть">&times;</button>
-          </div>
+      <!-- Выпадающее компактное окно подробностей (только если пользователь сам нажал раскрыть) -->
+      <div class="details-dropdown hidden" id="detailsDropdown">
+        <div class="dropdown-header">
+          <span>Доступность сетей в этой точке:</span>
+          <button class="dropdown-close" id="detailsCloseBtn">&times;</button>
         </div>
-
-        <!-- Разворачиваемое тело с подробностями -->
-        <div class="panel-body" id="panelBody">
-          <div class="coords-box">
-            Координаты: <span id="pointCoords">55.79030, 49.12280</span>
+        <div class="dropdown-grid">
+          <div class="tech-row" data-layer-click="g5_New">
+            <span class="tech-label">🚀 5G до 300 Мбит/с</span>
+            <span class="tech-val" id="status-g5_New">На карте</span>
           </div>
-
-          <!-- Результаты сетей -->
-          <div class="coverage-results">
-            <div class="results-header">
-              <h4>Доступность сетей МТС:</h4>
-              <button id="recheckBtn" class="recheck-btn" title="Перепроверить">⟳</button>
-            </div>
-            
-            <div class="tech-grid" id="techGrid">
-              <div class="tech-card" id="card-g5_New" data-layer-click="g5_New">
-                <div class="tech-header">
-                  <span class="tech-name">🚀 5G до 300 Мбит/с</span>
-                  <span class="tech-status status-loading" id="status-g5_New">Проверка...</span>
-                </div>
-                <div class="tech-desc">Высокоскоростной интернет нового поколения</div>
-              </div>
-
-              <div class="tech-card" id="card-g5" data-layer-click="g5">
-                <div class="tech-header">
-                  <span class="tech-name">⚡ Супер 5G (1.5 Гбит/с)</span>
-                  <span class="tech-status status-loading" id="status-g5">Проверка...</span>
-                </div>
-                <div class="tech-desc">Сверхвысокие пилотные скорости в центре</div>
-              </div>
-
-              <div class="tech-card" id="card-lte_New" data-layer-click="lte_New">
-                <div class="tech-header">
-                  <span class="tech-name">📶 4G LTE</span>
-                  <span class="tech-status status-loading" id="status-lte_New">Проверка...</span>
-                </div>
-                <div class="tech-desc">Быстрый интернет для видео и звонков</div>
-              </div>
-
-              <div class="tech-card" id="card-g3_New" data-layer-click="g3_New">
-                <div class="tech-header">
-                  <span class="tech-name">🌐 3G</span>
-                  <span class="tech-status status-loading" id="status-g3_New">Проверка...</span>
-                </div>
-                <div class="tech-desc">Связь и передача данных</div>
-              </div>
-
-              <div class="tech-card" id="card-g2_New" data-layer-click="g2_New">
-                <div class="tech-header">
-                  <span class="tech-name">📞 2G (GSM)</span>
-                  <span class="tech-status status-loading" id="status-g2_New">Проверка...</span>
-                </div>
-                <div class="tech-desc">Базовая голосовая связь и SMS</div>
-              </div>
-            </div>
+          <div class="tech-row" data-layer-click="g5">
+            <span class="tech-label">⚡ Супер 5G (1.5 Гбит/с)</span>
+            <span class="tech-val" id="status-g5">Клик для показа</span>
           </div>
-
-          <div class="panel-tip">
-            💡 <em>Нажимайте на строку сети, чтобы включить её слой на карте.</em>
+          <div class="tech-row" data-layer-click="lte_New">
+            <span class="tech-label">📶 4G LTE</span>
+            <span class="tech-val" id="status-lte_New">Клик для показа</span>
+          </div>
+          <div class="tech-row" data-layer-click="g3_New">
+            <span class="tech-label">🌐 3G</span>
+            <span class="tech-val" id="status-g3_New">Клик для показа</span>
+          </div>
+          <div class="tech-row" data-layer-click="g2_New">
+            <span class="tech-label">📞 2G</span>
+            <span class="tech-val" id="status-g2_New">Клик для показа</span>
           </div>
         </div>
-      </aside>
+      </div>
 
       <!-- Индикатор загрузки -->
       <div id="loaderOverlay" class="loader-overlay hidden">
         <div class="loader-spinner"></div>
-        <div class="loader-text" id="loaderText">Определение местоположения...</div>
+        <div class="loader-text" id="loaderText">Загрузка...</div>
       </div>
     </main>
   </div>
 
-  <!-- Cache buster v2.5 -->
-  <script src="app.js?v=2.5"></script>
+  <!-- Cache buster v3.0 -->
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>

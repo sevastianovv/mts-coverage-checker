@@ -1,5 +1,5 @@
 
-// Карта покрытия МТС: Интерактивный клиент (v2.5: без всплытия при старте)
+// Карта покрытия МТС: v3.0 (Сверхкомпактная нижняя плашка, 100% открытая карта)
 let map = null;
 let currentLayer = null;
 let currentLayerType = 'g5_New'; // По умолчанию 5G
@@ -17,7 +17,6 @@ const LAYER_NAMES = {
   'nb_iot': 'NB-IoT'
 };
 
-// Инициализация Yandex Maps
 ymaps.ready(initMap);
 
 function initMap() {
@@ -34,13 +33,13 @@ function initMap() {
   // Устанавливаем начальный слой МТС (5G)
   setMtsLayer(currentLayerType);
 
-  // Слушатель клика по карте
+  // Клик по карте
   map.events.add('click', function (e) {
     const coords = e.get('coords');
     checkLocation(coords, 'Выбранная точка');
   });
 
-  // Яндекс Саджест адресов
+  // Саджест адресов
   try {
     const suggestView = new ymaps.SuggestView('addressInput', {
       provider: {
@@ -52,20 +51,19 @@ function initMap() {
     });
 
     suggestView.events.add('select', function (e) {
-      const selectedValue = e.get('item').value;
-      geocodeAddress(selectedValue);
+      geocodeAddress(e.get('item').value);
     });
   } catch (err) {
-    console.warn('SuggestView warning:', err);
+    console.warn('SuggestView:', err);
   }
 
-  // Привязка UI событий
   setupEventListeners();
 
-  // ВАЖНО: При старте НИКАКИХ ОКОН НЕ ОТКРЫВАЕМ! Только чистая карта с покрытием 5G!
+  // ВАЖНО: При старте НИКАКИХ ОКОН И ПЛАШЕК НЕ ПОКАЗЫВАЕМ!
+  // Карта полностью чистая и открытая.
 }
 
-// Создание и переключение слоя МТС
+// Установка слоя МТС
 function setMtsLayer(layerType) {
   if (currentLayer) {
     map.layers.remove(currentLayer);
@@ -79,7 +77,6 @@ function setMtsLayer(layerType) {
     opacity: 0.85
   });
 
-  // Правило тайлов МТС
   currentLayer.getTileUrl = function (tile, zoom) {
     const z = zoom > 12 ? 12 : zoom;
     return `${MTS_TILES_BASE}/${layerType}/${z}/${tile[0]}/${tile[1]}/`;
@@ -91,128 +88,55 @@ function setMtsLayer(layerType) {
 
   map.layers.add(currentLayer);
 
-  // Обновляем бейдж активного слоя
-  const activePill = document.getElementById('activeLayerPill');
-  if (activePill) {
-    activePill.textContent = LAYER_NAMES[layerType] || layerType;
+  const pillBadge = document.getElementById('pillBadge');
+  if (pillBadge) {
+    pillBadge.textContent = LAYER_NAMES[layerType] || layerType;
   }
 }
 
-// Проверка точки (ТОЛЬКО по явному клику пользователя)
+// Выбор точки (вызывается ТОЛЬКО когда пользователь сам нажал на карту или GPS)
 function checkLocation(coords, label = 'Точка на карте') {
   currentCoords = coords;
 
-  // Маркер
   if (currentPlacemark) {
     currentPlacemark.geometry.setCoordinates(coords);
   } else {
     currentPlacemark = new ymaps.Placemark(coords, {
       hintContent: 'Проверяемая точка',
-      balloonContent: 'Определение покрытия...'
+      balloonContent: 'Определение адреса...'
     }, {
       preset: 'islands#redDotIconWithCaption',
       draggable: true
     });
 
     currentPlacemark.events.add('dragend', function () {
-      const newCoords = currentPlacemark.geometry.getCoordinates();
-      checkLocation(newCoords, 'Перемещенная точка');
+      checkLocation(currentPlacemark.geometry.getCoordinates(), 'Перемещенная точка');
     });
 
     map.geoObjects.add(currentPlacemark);
   }
 
-  // Плавный полет к точке
   map.panTo(coords, { flying: true, duration: 600 });
 
-  // Показываем плашку
-  const panel = document.getElementById('infoPanel');
-  panel.classList.remove('hidden');
-  
-  // На мобильных по умолчанию держим СВЕРНУТЫМ (только 1 строка внизу, не закрывает карту!)
-  if (window.innerWidth <= 768) {
-    panel.classList.add('minimized');
-    panel.classList.remove('expanded');
-    document.getElementById('openPanelFab').classList.add('hidden');
-  }
+  // Показываем ТОЛЬКО компактную плашку высотой 48px внизу!
+  const pill = document.getElementById('bottomPill');
+  pill.classList.remove('hidden');
 
-  document.getElementById('pointTitle').textContent = label;
-  document.getElementById('pointCoords').textContent = `${coords[0].toFixed(5)}, ${coords[1].toFixed(5)}`;
-  document.getElementById('pointAddress').textContent = 'Определение адреса...';
+  document.getElementById('pillAddress').textContent = 'Определение адреса...';
+  document.getElementById('pillCoords').textContent = `${coords[0].toFixed(5)}, ${coords[1].toFixed(5)}`;
+  document.getElementById('pillBadge').textContent = LAYER_NAMES[currentLayerType] || currentLayerType;
 
-  // Сброс статусов
-  const techKeys = ['g5_New', 'g5', 'lte_New', 'g3_New', 'g2_New'];
-  techKeys.forEach(k => {
-    const badge = document.getElementById(`status-${k}`);
-    if (badge) {
-      badge.textContent = 'Проверка...';
-      badge.className = 'tech-status status-loading';
-    }
-  });
-
-  // Обратное геокодирование адреса
+  // Обратное геокодирование
   ymaps.geocode(coords).then(res => {
     const firstGeoObject = res.geoObjects.get(0);
-    let addressText = 'Координаты: ' + coords[0].toFixed(5) + ', ' + coords[1].toFixed(5);
+    let addressText = coords[0].toFixed(5) + ', ' + coords[1].toFixed(5);
     if (firstGeoObject) {
       addressText = firstGeoObject.getAddressLine();
     }
-    document.getElementById('pointAddress').textContent = addressText;
-    currentPlacemark.properties.set('balloonContent', `<b>${addressText}</b>`);
+    document.getElementById('pillAddress').textContent = addressText;
+    currentPlacemark.properties.set('balloonContent', `<b>${addressText}</b><br>Слой: ${LAYER_NAMES[currentLayerType]}`);
   }).catch(() => {
-    document.getElementById('pointAddress').textContent = coords[0].toFixed(5) + ', ' + coords[1].toFixed(5);
-  });
-
-  // Запрос доступности
-  checkNetworkAvailability(coords);
-}
-
-// Запрос доступности
-function checkNetworkAvailability(coords) {
-  const [lat, lon] = coords;
-  fetch(`/api/check?lat=${lat}&lon=${lon}`)
-    .then(resp => {
-      if (!resp.ok) throw new Error('API unavailable');
-      return resp.json();
-    })
-    .then(data => {
-      hideLoader();
-      updateBadgesFromApi(data);
-    })
-    .catch(() => {
-      hideLoader();
-      updateBadgesStaticMode();
-    });
-}
-
-function updateBadgesFromApi(data) {
-  for (const [tech, available] of Object.entries(data)) {
-    const badge = document.getElementById(`status-${tech}`);
-    if (badge) {
-      if (available) {
-        badge.textContent = '✓ Доступно';
-        badge.className = 'tech-status status-available';
-      } else {
-        badge.textContent = '✕ Нет зоны';
-        badge.className = 'tech-status status-none';
-      }
-    }
-  }
-}
-
-function updateBadgesStaticMode() {
-  const techKeys = ['g5_New', 'g5', 'lte_New', 'g3_New', 'g2_New'];
-  techKeys.forEach(k => {
-    const badge = document.getElementById(`status-${k}`);
-    if (badge) {
-      if (k === currentLayerType) {
-        badge.textContent = '👀 На карте';
-        badge.className = 'tech-status status-visual';
-      } else {
-        badge.textContent = 'Клик для показа';
-        badge.className = 'tech-status status-loading';
-      }
-    }
+    document.getElementById('pillAddress').textContent = coords[0].toFixed(5) + ', ' + coords[1].toFixed(5);
   });
 }
 
@@ -234,8 +158,7 @@ function geocodeAddress(query) {
     hideLoader();
     const geoObject = res.geoObjects.get(0);
     if (geoObject) {
-      const coords = geoObject.geometry.getCoordinates();
-      checkLocation(coords, geoObject.getAddressLine() || q);
+      checkLocation(geoObject.geometry.getCoordinates(), geoObject.getAddressLine() || q);
     } else {
       alert('Адрес не найден.');
     }
@@ -245,21 +168,21 @@ function geocodeAddress(query) {
   });
 }
 
-// Запрос геопозиции GPS
+// GPS геолокация
 function requestUserGeolocation() {
   showLoader('Определение локации...');
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       pos => {
-        const coords = [pos.coords.latitude, pos.coords.longitude];
-        checkLocation(coords, 'Ваше местоположение');
+        hideLoader();
+        checkLocation([pos.coords.latitude, pos.coords.longitude], 'Ваше местоположение');
       },
       err => {
         console.warn('Geolocation fallback:', err.message);
         ymaps.geolocation.get({ provider: 'auto', mapStateAutoApply: false })
           .then(res => {
-            const coords = res.geoObjects.get(0).geometry.getCoordinates();
-            checkLocation(coords, 'Ваше местоположение');
+            hideLoader();
+            checkLocation(res.geoObjects.get(0).geometry.getCoordinates(), 'Ваше местоположение');
           })
           .catch(() => {
             hideLoader();
@@ -271,8 +194,8 @@ function requestUserGeolocation() {
   } else {
     ymaps.geolocation.get({ provider: 'auto', mapStateAutoApply: false })
       .then(res => {
-        const coords = res.geoObjects.get(0).geometry.getCoordinates();
-        checkLocation(coords, 'Ваше местоположение');
+        hideLoader();
+        checkLocation(res.geoObjects.get(0).geometry.getCoordinates(), 'Ваше местоположение');
       })
       .catch(() => {
         hideLoader();
@@ -288,15 +211,12 @@ function setupEventListeners() {
   const clearSearchBtn = document.getElementById('clearSearchBtn');
   const geoBtn = document.getElementById('geoBtn');
   const fabGeoBtn = document.getElementById('fabGeoBtn');
-  const openPanelFab = document.getElementById('openPanelFab');
-  const closePanelBtn = document.getElementById('closePanelBtn');
-  const toggleExpandBtn = document.getElementById('toggleExpandBtn');
-  const sheetToggleBar = document.getElementById('sheetToggleBar');
-  const panelHeader = document.getElementById('panelHeader');
-  const infoPanel = document.getElementById('infoPanel');
-  const recheckBtn = document.getElementById('recheckBtn');
+  const bottomPill = document.getElementById('bottomPill');
+  const pillToggleArea = document.getElementById('pillToggleArea');
+  const pillCloseBtn = document.getElementById('pillCloseBtn');
+  const detailsDropdown = document.getElementById('detailsDropdown');
+  const detailsCloseBtn = document.getElementById('detailsCloseBtn');
 
-  // Поиск
   searchBtn.addEventListener('click', () => geocodeAddress(addressInput.value));
   addressInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') geocodeAddress(addressInput.value);
@@ -311,53 +231,36 @@ function setupEventListeners() {
     addressInput.focus();
   });
 
-  // GPS кнопки
   if (geoBtn) geoBtn.addEventListener('click', requestUserGeolocation);
   if (fabGeoBtn) fabGeoBtn.addEventListener('click', requestUserGeolocation);
 
-  // Сворачивание / разворачивание
-  function togglePanelExpansion() {
-    if (infoPanel.classList.contains('minimized')) {
-      infoPanel.classList.remove('minimized');
-      infoPanel.classList.add('expanded');
-    } else {
-      infoPanel.classList.remove('expanded');
-      infoPanel.classList.add('minimized');
-    }
+  // Закрытие мини-плашки
+  if (pillCloseBtn) {
+    pillCloseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      bottomPill.classList.add('hidden');
+      detailsDropdown.classList.add('hidden');
+    });
   }
 
-  if (toggleExpandBtn) toggleExpandBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    togglePanelExpansion();
-  });
+  // Клик по плашке раскрывает/скрывает выпадающий список подробностей
+  if (pillToggleArea) {
+    pillToggleArea.addEventListener('click', () => {
+      detailsDropdown.classList.toggle('hidden');
+      const arrow = document.querySelector('.chevron-arrow');
+      if (arrow) {
+        arrow.style.transform = detailsDropdown.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+      }
+    });
+  }
 
-  if (sheetToggleBar) sheetToggleBar.addEventListener('click', togglePanelExpansion);
-  
-  if (panelHeader) panelHeader.addEventListener('click', (e) => {
-    if (!e.target.closest('.action-btn')) {
-      togglePanelExpansion();
-    }
-  });
+  if (detailsCloseBtn) {
+    detailsCloseBtn.addEventListener('click', () => {
+      detailsDropdown.classList.add('hidden');
+    });
+  }
 
-  // Закрытие карточки
-  if (closePanelBtn) closePanelBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    infoPanel.classList.add('hidden');
-    openPanelFab.classList.remove('hidden');
-  });
-
-  // Открытие карточки
-  if (openPanelFab) openPanelFab.addEventListener('click', () => {
-    infoPanel.classList.remove('hidden');
-    openPanelFab.classList.add('hidden');
-  });
-
-  // Перепроверка
-  if (recheckBtn) recheckBtn.addEventListener('click', () => {
-    checkLocation(currentCoords, document.getElementById('pointTitle').textContent);
-  });
-
-  // Переключение слоев
+  // Переключение слоев через чипсы
   const chips = document.querySelectorAll('.layer-chip');
   chips.forEach(chip => {
     chip.addEventListener('click', () => {
@@ -365,15 +268,14 @@ function setupEventListeners() {
       chip.classList.add('active');
       const layer = chip.dataset.layer;
       setMtsLayer(layer);
-      updateBadgesStaticMode();
     });
   });
 
-  // Клик по строке в карточке
-  const techCards = document.querySelectorAll('.tech-card');
-  techCards.forEach(card => {
-    card.addEventListener('click', () => {
-      const layer = card.dataset.layerClick;
+  // Клик по строке в подробностях тоже переключает слой
+  const techRows = document.querySelectorAll('.tech-row');
+  techRows.forEach(row => {
+    row.addEventListener('click', () => {
+      const layer = row.dataset.layerClick;
       if (layer) {
         chips.forEach(c => {
           if (c.dataset.layer === layer) {
