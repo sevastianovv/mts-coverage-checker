@@ -1,12 +1,21 @@
 
-// Карта покрытия МТС: Интерактивный клиент
+// Карта покрытия МТС: Интерактивный клиент (Mobile-First Bottom Sheet)
 let map = null;
 let currentLayer = null;
 let currentLayerType = 'g5_New'; // По умолчанию 5G
 let currentPlacemark = null;
-let currentCoords = [55.7903, 49.1228]; // Казань по умолчанию
+let currentCoords = [55.7903, 49.1228]; // Казань
 
 const MTS_TILES_BASE = 'https://tiles.qsupport.mts.ru';
+
+const LAYER_NAMES = {
+  'g5_New': '5G 300М',
+  'g5': 'Супер 5G',
+  'lte_New': '4G LTE',
+  'g3_New': '3G',
+  'g2_New': '2G',
+  'nb_iot': 'NB-IoT'
+};
 
 // Инициализация Yandex Maps
 ymaps.ready(initMap);
@@ -22,7 +31,7 @@ function initMap() {
     maxZoom: 18
   });
 
-  // Устанавливаем стартовый слой покрытия МТС (5G)
+  // Устанавливаем начальный слой МТС (5G)
   setMtsLayer(currentLayerType);
 
   // Слушатель клика по карте
@@ -31,11 +40,11 @@ function initMap() {
     checkLocation(coords, 'Выбранная точка');
   });
 
-  // Автодополнение адресов Яндекса для поля ввода
+  // Яндекс Саджест адресов
   try {
     const suggestView = new ymaps.SuggestView('addressInput', {
       provider: {
-        suggest: function (request, options) {
+        suggest: function (request) {
           return ymaps.suggest(request);
         }
       },
@@ -50,10 +59,10 @@ function initMap() {
     console.warn('SuggestView warning:', err);
   }
 
-  // Привязка кнопок управления
+  // Привязка UI событий
   setupEventListeners();
 
-  // Начальная проверка Казани
+  // Начальная точка в центре Казани (в свернутом режиме, чтобы не перекрывать карту)
   checkLocation(currentCoords, 'г. Казань (центр)');
 }
 
@@ -65,16 +74,15 @@ function setMtsLayer(layerType) {
 
   currentLayerType = layerType;
 
-  // Создаем слой тайлов МТС
   currentLayer = new ymaps.Layer('', {
     tileTransparent: true,
     zIndex: 200,
     opacity: 0.85
   });
 
-  // Официальный алгоритм МТС формирования URL тайлов
+  // Правило тайлов МТС
   currentLayer.getTileUrl = function (tile, zoom) {
-    const z = zoom > 12 ? 12 : zoom; // МТС генерирует тайлы до 12 зума
+    const z = zoom > 12 ? 12 : zoom;
     return `${MTS_TILES_BASE}/${layerType}/${z}/${tile[0]}/${tile[1]}/`;
   };
 
@@ -83,20 +91,25 @@ function setMtsLayer(layerType) {
   };
 
   map.layers.add(currentLayer);
+
+  // Обновляем бейдж активного слоя в инфо-панели
+  const activePill = document.getElementById('activeLayerPill');
+  if (activePill) {
+    activePill.textContent = LAYER_NAMES[layerType] || layerType;
+  }
 }
 
-// Проверка и центрирование на координатах
+// Проверка точки
 function checkLocation(coords, label = 'Точка на карте') {
   currentCoords = coords;
-  showLoader('Анализ покрытия и адреса...');
 
-  // Обновляем маркер
+  // Маркер
   if (currentPlacemark) {
     currentPlacemark.geometry.setCoordinates(coords);
   } else {
     currentPlacemark = new ymaps.Placemark(coords, {
       hintContent: 'Проверяемая точка',
-      balloonContent: 'Анализ покрытия...'
+      balloonContent: 'Определение покрытия...'
     }, {
       preset: 'islands#redDotIconWithCaption',
       draggable: true
@@ -104,18 +117,26 @@ function checkLocation(coords, label = 'Точка на карте') {
 
     currentPlacemark.events.add('dragend', function () {
       const newCoords = currentPlacemark.geometry.getCoordinates();
-      checkLocation(newCoords, 'Перемещенный маркер');
+      checkLocation(newCoords, 'Перемещенная точка');
     });
 
     map.geoObjects.add(currentPlacemark);
   }
 
-  // Плавный переход к точке
-  map.panTo(coords, { flying: true, duration: 800 });
+  // Плавный полет к точке
+  map.panTo(coords, { flying: true, duration: 600 });
 
-  // Обновляем панель инфо
+  // Показываем панель в СВЕРНУТОМ виде (minimized), чтобы не закрывать экран на мобильном!
   const panel = document.getElementById('infoPanel');
   panel.classList.remove('hidden');
+  
+  // На мобильных по умолчанию держим свернутым
+  if (window.innerWidth <= 768) {
+    panel.classList.add('minimized');
+    panel.classList.remove('expanded');
+    // Скрываем плавающую кнопку открытия, пока панель показана
+    document.getElementById('openPanelFab').classList.add('hidden');
+  }
 
   document.getElementById('pointTitle').textContent = label;
   document.getElementById('pointCoords').textContent = `${coords[0].toFixed(5)}, ${coords[1].toFixed(5)}`;
@@ -134,26 +155,24 @@ function checkLocation(coords, label = 'Точка на карте') {
   // Обратное геокодирование адреса
   ymaps.geocode(coords).then(res => {
     const firstGeoObject = res.geoObjects.get(0);
-    let addressText = 'Адрес не определен';
+    let addressText = 'Координаты: ' + coords[0].toFixed(5) + ', ' + coords[1].toFixed(5);
     if (firstGeoObject) {
       addressText = firstGeoObject.getAddressLine();
     }
     document.getElementById('pointAddress').textContent = addressText;
-    currentPlacemark.properties.set('balloonContent', `<b>${addressText}</b><br>Координаты: ${coords[0].toFixed(5)}, ${coords[1].toFixed(5)}`);
+    currentPlacemark.properties.set('balloonContent', `<b>${addressText}</b>`);
   }).catch(() => {
-    document.getElementById('pointAddress').textContent = 'Координаты: ' + coords[0].toFixed(5) + ', ' + coords[1].toFixed(5);
+    document.getElementById('pointAddress').textContent = coords[0].toFixed(5) + ', ' + coords[1].toFixed(5);
   });
 
-  // Опрос доступности сетей (через встроенный API бэкенда либо визуальный маркер)
+  // Запрос доступности
   checkNetworkAvailability(coords);
 }
 
-// Запрос проверки сетей (бэкенд или визуальная оценка)
+// Запрос доступности (API бэкенда либо статический режим)
 function checkNetworkAvailability(coords) {
   const [lat, lon] = coords;
-  const apiUrl = `/api/check?lat=${lat}&lon=${lon}`;
-
-  fetch(apiUrl)
+  fetch(`/api/check?lat=${lat}&lon=${lon}`)
     .then(resp => {
       if (!resp.ok) throw new Error('API unavailable');
       return resp.json();
@@ -163,14 +182,12 @@ function checkNetworkAvailability(coords) {
       updateBadgesFromApi(data);
     })
     .catch(() => {
-      // Если бэкенд не запущен (например открыт просто локальный index.html на GitHub Pages)
       hideLoader();
       updateBadgesStaticMode();
     });
 }
 
 function updateBadgesFromApi(data) {
-  // data: { "g5_New": bool, "g5": bool, "lte_New": bool, "g3_New": bool, "g2_New": bool }
   for (const [tech, available] of Object.entries(data)) {
     const badge = document.getElementById(`status-${tech}`);
     if (badge) {
@@ -186,88 +203,82 @@ function updateBadgesFromApi(data) {
 }
 
 function updateBadgesStaticMode() {
-  // В статическом режиме подсказываем пользователю смотреть на слой
-  const currentTab = document.querySelector('.layer-tab.active');
-  const activeName = currentTab ? currentTab.dataset.name : '5G';
-  
   const techKeys = ['g5_New', 'g5', 'lte_New', 'g3_New', 'g2_New'];
   techKeys.forEach(k => {
     const badge = document.getElementById(`status-${k}`);
     if (badge) {
       if (k === currentLayerType) {
-        badge.textContent = '👀 Отображен на карте';
+        badge.textContent = '👀 На карте';
         badge.className = 'tech-status status-visual';
       } else {
-        badge.textContent = 'Переключите слой';
+        badge.textContent = 'Клик для показа';
         badge.className = 'tech-status status-loading';
       }
     }
   });
 }
 
-// Поиск по текстовому адресу или координатам
+// Геокодирование адреса
 function geocodeAddress(query) {
   if (!query || !query.trim()) return;
   const q = query.trim();
-  showLoader('Поиск адреса...');
+  showLoader('Поиск...');
 
-  // Проверяем, не введены ли координаты вида "55.7903, 49.1228"
   const coordRegex = /^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/;
   if (coordRegex.test(q)) {
     const parts = q.split(',').map(s => parseFloat(s.trim()));
-    checkLocation(parts, 'Введенные координаты');
+    checkLocation(parts, 'Координаты');
+    hideLoader();
     return;
   }
 
-  // Геокодирование через Яндекс
   ymaps.geocode(q, { results: 1 }).then(res => {
+    hideLoader();
     const geoObject = res.geoObjects.get(0);
     if (geoObject) {
       const coords = geoObject.geometry.getCoordinates();
       checkLocation(coords, geoObject.getAddressLine() || q);
     } else {
-      hideLoader();
-      alert('Адрес не найден. Попробуйте уточнить город или улицу.');
+      alert('Адрес не найден. Попробуйте уточнить запрос.');
     }
   }).catch(err => {
     hideLoader();
-    alert('Ошибка при поиске адреса: ' + err.message);
+    alert('Ошибка поиска: ' + err.message);
   });
 }
 
-// Запрос геопозиции браузера (GPS)
+// Запрос геопозиции
 function requestUserGeolocation() {
-  showLoader('Запрос геопозиции...');
+  showLoader('Определение локации...');
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       pos => {
         const coords = [pos.coords.latitude, pos.coords.longitude];
-        checkLocation(coords, '📍 Ваше местоположение');
+        checkLocation(coords, 'Ваше местоположение');
       },
       err => {
-        console.warn('HTML5 Geolocation fallback to Yandex:', err.message);
-        // Резервный провайдер через ymaps
+        console.warn('Geolocation fallback:', err.message);
         ymaps.geolocation.get({ provider: 'auto', mapStateAutoApply: false })
           .then(res => {
             const coords = res.geoObjects.get(0).geometry.getCoordinates();
-            checkLocation(coords, '📍 Ваше местоположение (IP)');
+            checkLocation(coords, 'Ваше местоположение');
           })
-          .catch(e => {
+          .catch(() => {
             hideLoader();
-            alert('Не удалось определить геолокацию. Разрешите доступ к местоположению в браузере или введите адрес вручную.');
+            alert('Разрешите доступ к геолокации в браузере.');
           });
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
     );
   } else {
     ymaps.geolocation.get({ provider: 'auto', mapStateAutoApply: false })
       .then(res => {
         const coords = res.geoObjects.get(0).geometry.getCoordinates();
-        checkLocation(coords, '📍 Ваше местоположение');
+        checkLocation(coords, 'Ваше местоположение');
       })
       .catch(() => {
         hideLoader();
-        alert('Геолокация не поддерживается вашим браузером. Введите адрес вручную.');
+        alert('Геолокация недоступна. Введите адрес вручную.');
       });
   }
 }
@@ -278,16 +289,21 @@ function setupEventListeners() {
   const searchBtn = document.getElementById('searchBtn');
   const clearSearchBtn = document.getElementById('clearSearchBtn');
   const geoBtn = document.getElementById('geoBtn');
+  const fabGeoBtn = document.getElementById('fabGeoBtn');
+  const openPanelFab = document.getElementById('openPanelFab');
   const closePanelBtn = document.getElementById('closePanelBtn');
+  const toggleExpandBtn = document.getElementById('toggleExpandBtn');
+  const sheetToggleBar = document.getElementById('sheetToggleBar');
+  const panelHeader = document.getElementById('panelHeader');
+  const infoPanel = document.getElementById('infoPanel');
   const recheckBtn = document.getElementById('recheckBtn');
 
-  // Поиск по кнопке и Enter
+  // Поиск
   searchBtn.addEventListener('click', () => geocodeAddress(addressInput.value));
   addressInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') geocodeAddress(addressInput.value);
   });
 
-  // Кнопка очистки поля ввода
   addressInput.addEventListener('input', () => {
     clearSearchBtn.style.display = addressInput.value.length > 0 ? 'block' : 'none';
   });
@@ -297,39 +313,83 @@ function setupEventListeners() {
     addressInput.focus();
   });
 
-  // Кнопка "Мое местоположение"
-  geoBtn.addEventListener('click', requestUserGeolocation);
+  // GPS кнопки (десктопная и мобильная плавающая)
+  if (geoBtn) geoBtn.addEventListener('click', requestUserGeolocation);
+  if (fabGeoBtn) fabGeoBtn.addEventListener('click', requestUserGeolocation);
 
-  // Кнопка закрытия панели
-  closePanelBtn.addEventListener('click', () => {
-    document.getElementById('infoPanel').classList.add('hidden');
+  // Сворачивание / разворачивание панели
+  function togglePanelExpansion() {
+    if (infoPanel.classList.contains('minimized')) {
+      infoPanel.classList.remove('minimized');
+      infoPanel.classList.add('expanded');
+    } else {
+      infoPanel.classList.remove('expanded');
+      infoPanel.classList.add('minimized');
+    }
+  }
+
+  if (toggleExpandBtn) toggleExpandBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePanelExpansion();
   });
 
-  // Кнопка перепроверки
-  recheckBtn.addEventListener('click', () => {
+  if (sheetToggleBar) sheetToggleBar.addEventListener('click', togglePanelExpansion);
+  
+  if (panelHeader) panelHeader.addEventListener('click', (e) => {
+    // Если кликнули не по крестику
+    if (!e.target.closest('.action-btn')) {
+      togglePanelExpansion();
+    }
+  });
+
+  // Полное закрытие панели
+  if (closePanelBtn) closePanelBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    infoPanel.classList.add('hidden');
+    openPanelFab.classList.remove('hidden');
+  });
+
+  // Восстановление панели
+  if (openPanelFab) openPanelFab.addEventListener('click', () => {
+    infoPanel.classList.remove('hidden');
+    openPanelFab.classList.add('hidden');
+  });
+
+  // Перепроверка
+  if (recheckBtn) recheckBtn.addEventListener('click', () => {
     checkLocation(currentCoords, document.getElementById('pointTitle').textContent);
   });
 
-  // Вкладки слоев МТС (5G, 4G, 3G, 2G, NB-IoT)
-  const tabs = document.querySelectorAll('.layer-tab');
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      tabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      const layer = tab.dataset.layer;
+  // Переключение слоев через чипсы
+  const chips = document.querySelectorAll('.layer-chip');
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      chips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const layer = chip.dataset.layer;
       setMtsLayer(layer);
-      
-      // Обновляем плашку в панели
-      const badge = document.getElementById(`status-${layer}`);
-      if (badge && badge.textContent.includes('Отображен')) {
-        // ok
+      updateBadgesStaticMode();
+    });
+  });
+
+  // Клик по строке сети в панели тоже переключает слой на карте!
+  const techCards = document.querySelectorAll('.tech-card');
+  techCards.forEach(card => {
+    card.addEventListener('click', () => {
+      const layer = card.dataset.layerClick;
+      if (layer) {
+        chips.forEach(c => {
+          if (c.dataset.layer === layer) {
+            c.click();
+          }
+        });
       }
     });
   });
 
   // Пресеты городов
-  const presetBtns = document.querySelectorAll('.preset-btn');
-  presetBtns.forEach(btn => {
+  const cityChips = document.querySelectorAll('.city-chip');
+  cityChips.forEach(btn => {
     btn.addEventListener('click', () => {
       const lat = parseFloat(btn.dataset.lat);
       const lon = parseFloat(btn.dataset.lon);
